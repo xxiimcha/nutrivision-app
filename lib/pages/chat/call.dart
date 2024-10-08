@@ -20,8 +20,24 @@ class _CallWebViewState extends State<CallWebView> {
   }
 
   Future<void> _initWebView() async {
-    await _controller.initialize();
-    _controller.loadUrl(widget.roomLink);
+    try {
+      await _controller.initialize();
+      print('WebView initialized');
+
+      // Ensure the URL starts with 'http' or 'https'
+      String url = widget.roomLink;
+      if (!url.startsWith('http')) {
+        url = 'https://$url';
+      }
+
+      if (_controller.value.isInitialized) {
+        await _controller.loadUrl(url);
+        print('WebView URL Loaded: $url');
+        setState(() {}); // Trigger rebuild to display the WebView
+      }
+    } catch (e) {
+      print('Error initializing WebView: $e');
+    }
   }
 
   @override
@@ -39,6 +55,10 @@ class _CallWebViewState extends State<CallWebView> {
   Future<WebviewPermissionDecision> _onPermissionRequested(
     String url, WebviewPermissionKind kind, bool isUserInitiated,
   ) async {
-    return WebviewPermissionDecision.allow;
+    // Handle camera/microphone permissions
+    if (kind == WebviewPermissionKind.microphone || kind == WebviewPermissionKind.camera) {
+      return WebviewPermissionDecision.allow;
+    }
+    return WebviewPermissionDecision.deny;
   }
 }
