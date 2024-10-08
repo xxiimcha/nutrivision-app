@@ -200,8 +200,12 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
 
+    // Update user's status to 'online'
+    user.status = 'online'; // Assuming you have a `status` field in your user schema
+    await user.save(); // Save the updated status to the database
+
     console.log(`Login successful for user: ${user.username}`);
-    res.status(200).json({ msg: 'Login successful', userId: user._id }); // Return user ID in the response
+    res.status(200).json({ msg: 'Login successful', userId: user._id, status: user.status }); // Return user ID and status in the response
   } catch (err) {
     console.error('Error during login:', err.message);
     res.status(500).send('Server error');

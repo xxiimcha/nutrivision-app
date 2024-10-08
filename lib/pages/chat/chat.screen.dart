@@ -96,7 +96,7 @@ class _ChatPageState extends State<ChatPage> {
                     return const Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
                     // Show error message if there's an error loading the messages
-                    return const Center(child: Text('Error loading messages'));
+                    return const Center(child: Text('No messages available'));
                   } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     // Show message if no messages are available
                     return const Center(child: Text('No messages available'));

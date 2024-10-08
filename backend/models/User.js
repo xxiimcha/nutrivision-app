@@ -15,14 +15,6 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  firstName: {
-    type: String,
-    required: false, // Initially not required, can be updated later
-  },
-  lastName: {
-    type: String,
-    required: false, // Initially not required, can be updated later
-  },
   otp: {
     type: String,
     required: false,
@@ -30,6 +22,12 @@ const UserSchema = new mongoose.Schema({
   otpExpires: {
     type: Date,
     required: false,
+  },
+  status: {
+    type: String,
+    enum: ['online', 'offline'],
+    default: 'offline',
+    required: true,
   },
 });
 
