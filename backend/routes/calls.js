@@ -1,79 +1,53 @@
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
-const CallSignal = require('../models/CallSignal');  // Import the CallSignal model
+const CallSignal = require('../models/CallSignal');
 
-// Endpoint to check for incoming calls
-router.get('/check/:userId', async (req, res) => {
+// Get call signals for the logged-in user (callee)
+router.get('/:userId', async (req, res) => {
   const { userId } = req.params;
 
   try {
-    // Check for any ongoing calls where the receiver is the user
-    const call = await CallSignal.findOne({
-      receiverId: mongoose.Types.ObjectId(userId),
-      status: { $in: ['calling', 'ringing'] }, // Check for incoming/ringing calls
-    }).sort({ timestamp: -1 });
+    // Fetch only the "calling" status signals for the receiver
+    const calls = await CallSignal.find({
+      receiverId: userId,   // Find by receiverId
+      status: 'calling',    // Only get the "calling" status
+    }).populate('callerId', 'name'); // Optionally populate caller's name or other details
 
-    if (call) {
-      res.json({
-        hasIncomingCall: true,
-        callerId: call.callerId,
-        callType: call.callType,
-      });
-    } else {
-      res.json({ hasIncomingCall: false });
+    if (!calls.length) {
+      return res.status(404).json({ msg: 'No incoming calls' });
     }
+
+    res.status(200).json(calls);
   } catch (err) {
-    console.error(err);
-    res.status(500).send('Error checking incoming call');
+    console.error('Error fetching call signals:', err.message);
+    res.status(500).send('Server error');
   }
 });
 
-// Endpoint to accept a call
-router.post('/accept/:userId', async (req, res) => {
-  const { userId } = req.params;
-  const { callerId } = req.body;
+// Update call status (e.g., "accepted", "declined")
+router.post('/:callId/status', async (req, res) => {
+  const { callId } = req.params;
+  const { status } = req.body; // e.g., "accepted", "declined"
 
-  try {
-    // Find the ongoing call and update its status to 'accepted'
-    const call = await CallSignal.findOneAndUpdate(
-      { callerId, receiverId: mongoose.Types.ObjectId(userId), status: 'ringing' },
-      { $set: { status: 'accepted' } },
-      { new: true }
-    );
-
-    if (call) {
-      res.json({ success: true, message: 'Call accepted' });
-    } else {
-      res.status(404).json({ success: false, message: 'No matching call request' });
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Error accepting call');
+  if (!['calling', 'ringing', 'accepted', 'declined', 'missed', 'ended'].includes(status)) {
+    return res.status(400).json({ msg: 'Invalid status' });
   }
-});
-
-// Endpoint to decline a call
-router.post('/decline/:userId', async (req, res) => {
-  const { userId } = req.params;
-  const { callerId } = req.body;
 
   try {
-    // Find the ongoing call and update its status to 'declined'
-    const call = await CallSignal.findOneAndUpdate(
-      { callerId, receiverId: mongoose.Types.ObjectId(userId), status: 'ringing' },
-      { $set: { status: 'declined' } },
-      { new: true }
-    );
-
-    if (call) {
-      res.json({ success: true, message: 'Call declined' });
-    } else {
-      res.status(404).json({ success: false, message: 'No matching call request' });
+    // Find the call by ID
+    const call = await CallSignal.findById(callId);
+    if (!call) {
+      return res.status(404).json({ msg: 'Call not found' });
     }
+
+    // Update the call's status
+    call.status = status;
+    await call.save();
+
+    res.status(200).json({ msg: 'Call status updated', call });
   } catch (err) {
-    console.error(err);
-    res.status(500).send('Error declining call');
+    console.error('Error updating call status:', err.message);
+    res.status(500).send('Server error');
   }
 });
 
