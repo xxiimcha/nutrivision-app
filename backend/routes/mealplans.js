@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const MealPlan = require('../models/MealPlan');
+const moment = require('moment'); // Import moment for date formatting
 
 // Create a new meal plan
 router.post('/', async (req, res) => {
@@ -91,13 +92,41 @@ router.post('/saveImageUrl', async (req, res) => {
   const { patientId, weekStartDate, day, mealType, imageUrl } = req.body;
 
   try {
-    const fieldToUpdate = `${day}.${mealType}.photo`;
+    // Convert weekStartDate to the desired format (YYYY-MM-DD)
+    const formattedWeekStartDate = moment(weekStartDate).format('YYYY-MM-DD');
 
-    // Update the photo field for the specified day and meal type
-    await MealPlan.updateOne(
-      { patientId, week: weekStartDate },
-      { $set: { [fieldToUpdate]: imageUrl } }
+    const fieldToUpdate = `${day}.${mealType}.photo`; // Path to the photo field
+
+    console.log(`Updating image URL for:`);
+    console.log(`Patient ID: ${patientId}`);
+    console.log(`Formatted Week Start Date: ${formattedWeekStartDate}`);
+    console.log(`Day: ${day}`);
+    console.log(`Meal Type: ${mealType}`);
+    console.log(`Field to Update: ${fieldToUpdate}`);
+    console.log(`Image URL: ${imageUrl}`);
+
+    // Find the document first and check if it exists
+    const mealPlan = await MealPlan.findOne({ patientId, week: formattedWeekStartDate });
+    if (!mealPlan) {
+      console.log(`No meal plan found for patientId ${patientId} and week ${formattedWeekStartDate}`);
+      return res.status(404).send('No meal plan found.');
+    }
+
+    // Attempt to update the photo field
+    const updateResult = await MealPlan.updateOne(
+      { patientId, week: formattedWeekStartDate },
+      {
+        $set: {
+          [fieldToUpdate]: imageUrl, // Update the photo field
+        }
+      }
     );
+
+    // Check if any document was updated
+    if (updateResult.nModified === 0) {
+      console.log('No document was updated. Possible incorrect field path or missing document.');
+      return res.status(404).send('No document was updated. Possible incorrect field path or missing document.');
+    }
 
     res.status(200).send('Image URL saved successfully.');
   } catch (err) {

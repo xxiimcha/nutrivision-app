@@ -123,12 +123,13 @@ class _PlanScreenState extends State<PlanScreen> {
 
     if (image != null) {
       setState(() {
-        _selectedImage = File(image.path);
+        _selectedImage = File(image.path);  // Store the selected image
       });
 
-      await _uploadPhotoToFirebase(day, mealType);  // Upload to Firebase
+      await _uploadPhotoToFirebase(day, mealType, _selectedImage!);  // Pass the image to upload
     }
   }
+
 
   // Pick image from gallery and upload to Firebase for a specific day and meal type
   Future<void> _uploadPhoto(String day, String mealType) async {
@@ -137,16 +138,16 @@ class _PlanScreenState extends State<PlanScreen> {
 
     if (image != null) {
       setState(() {
-        _selectedImage = File(image.path);
+        _selectedImage = File(image.path);  // Store the selected image
       });
 
-      await _uploadPhotoToFirebase(day, mealType);  // Upload to Firebase
+      await _uploadPhotoToFirebase(day, mealType, _selectedImage!);  // Pass the image to upload
     }
   }
 
- // Upload the selected image to Firebase Storage and save the URL to the database
-  Future<void> _uploadPhotoToFirebase(String day, String mealType) async {
-    if (_selectedImage == null) return;
+  // Upload the selected image to Firebase Storage and save the URL to the database
+  Future<void> _uploadPhotoToFirebase(String day, String mealType, File imageFile) async {
+    if (imageFile == null) return;
 
     setState(() {
       isUploading = true;
@@ -159,7 +160,7 @@ class _PlanScreenState extends State<PlanScreen> {
           .child('meal_images/${DateTime.now().millisecondsSinceEpoch}.jpg');
 
       // Upload the image
-      UploadTask uploadTask = storageRef.putFile(_selectedImage!);
+      UploadTask uploadTask = storageRef.putFile(imageFile);
 
       // Wait until the upload is complete
       TaskSnapshot snapshot = await uploadTask;
@@ -207,6 +208,34 @@ class _PlanScreenState extends State<PlanScreen> {
       }
     } catch (e) {
       print('Error saving image URL: $e');
+    }
+  }
+
+  // Method to update meal status
+  Future<void> _updateMealStatus(String day, String mealType, String status) async {
+    try {
+      final response = await http.put(
+        Uri.parse('http://localhost:5000/api/mealplans/updateStatus'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'patientId': widget.patientId,
+          'weekStartDate': widget.weekStartDate,
+          'day': day,
+          'mealType': mealType,
+          'status': status, // Set status to "DONE"
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('Meal status updated successfully.');
+        setState(() {
+          mealPlan[day][mealType]['status'] = status; // Update the UI
+        });
+      } else {
+        print('Failed to update meal status: ${response.reasonPhrase}');
+      }
+    } catch (e) {
+      print('Error updating meal status: $e');
     }
   }
 
@@ -311,34 +340,8 @@ class _PlanScreenState extends State<PlanScreen> {
   Widget _buildMealPlanForDay(String day, Map<String, dynamic> meals) {
     return Column(
       children: ['breakfast', 'lunch', 'dinner'].map((mealType) {
-        if (meals.containsKey(mealType) && meals[mealType] != null && meals[mealType]['approved'] == true) {
-          return Column(
-            children: [
-              _buildMealCard(mealType, meals[mealType]),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton(
-                    onPressed: () async {
-                      await _takePhoto(day, mealType);  // Pass day and mealType to take photo
-                    },
-                    child: const Text("Take Photo"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      await _uploadPhoto(day, mealType);  // Pass day and mealType to upload photo
-                    },
-                    child: const Text("Upload Photo"),
-                  ),
-                ],
-              ),
-              if (_selectedImage != null)
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Image.file(_selectedImage!, width: 100, height: 100),
-                ),
-            ],
-          );
+        if (meals.containsKey(mealType) && meals[mealType] != null) {
+          return _buildMealCard(day, mealType, meals[mealType]); // Pass only the necessary arguments
         } else {
           return Padding(
             padding: const EdgeInsets.all(8.0),
@@ -351,55 +354,110 @@ class _PlanScreenState extends State<PlanScreen> {
       }).toList(),
     );
   }
-
-  // Build a single meal card
-  Widget _buildMealCard(String mealType, Map<String, dynamic> mealData) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      elevation: 5,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+// Build meal card
+Widget _buildMealCard(String day, String mealType, Map<String, dynamic> mealData) {
+  return Card(
+    margin: const EdgeInsets.symmetric(vertical: 8),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    elevation: 5,
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                mealType.toUpperCase(),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.help_outline),
+                tooltip: 'Show Ingredients',
+                onPressed: () {
+                  _showIngredientsModal(context, mealType, mealData['ingredients']);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildMealRow("Main dish", mealData['mainDish']),
+          _buildMealRow("Drinks", mealData['drinks']),
+          _buildMealRow("Vitamins", mealData['vitamins']),
+          const SizedBox(height: 10),
+          
+          // Check if the photo field is not blank
+          if (mealData['photo'] == null || mealData['photo'] == "") ...[
+            // Show Take Photo and Upload Photo buttons if no photo is uploaded
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                Text(
-                  mealType.toUpperCase(),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.help_outline),
-                  tooltip: 'Show Ingredients',
-                  onPressed: () {
-                    _showIngredientsModal(context, mealType, mealData['ingredients']);
+                ElevatedButton(
+                  onPressed: () async {
+                    await _takePhoto(day, mealType);  // Pass day and mealType to take photo
                   },
+                  child: const Text("Take Photo"),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: mealData['approved'] == true ? Colors.green : Colors.red,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    mealData['approved'] == true ? 'DONE' : 'IN PROGRESS',
-                    style: const TextStyle(color: Colors.white),
-                  ),
+                ElevatedButton(
+                  onPressed: () async {
+                    await _uploadPhoto(day, mealType);  // Pass day and mealType to upload photo
+                  },
+                  child: const Text("Upload Photo"),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            _buildMealRow("Main dish", mealData['mainDish']),
-            _buildMealRow("Drinks", mealData['drinks']),
-            _buildMealRow("Vitamins", mealData['vitamins']),
-            const SizedBox(height: 10),
+          ] else ...[
+            // Show View Photo button when the photo is uploaded
+            Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  _showPhotoModal(context, mealData['photo']);  // Show the photo in a modal
+                },
+                child: const Text("View Photo"),
+              ),
+            ),
           ],
-        ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
+// Show a modal with the photo
+void _showPhotoModal(BuildContext context, String imageUrl) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text("Meal Photo"),
+        content: imageUrl.isNotEmpty
+            ? Image.network(imageUrl, width: 200, height: 200)  // Display the image from URL
+            : const Text('No image available'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('Close'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+// Display a single row for a meal detail
+Widget _buildMealRow(String label, String? value) {
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text("$label: ", style: const TextStyle(fontWeight: FontWeight.bold)),
+      Expanded(child: Text(value ?? 'N/A')),
+    ],
+  );
+}
+
 
   // Show a modal with the ingredients
   void _showIngredientsModal(BuildContext context, String mealType, List<dynamic>? ingredients) {
@@ -431,16 +489,4 @@ class _PlanScreenState extends State<PlanScreen> {
       },
     );
   }
-
-  // Display a single row for a meal detail
-  Widget _buildMealRow(String label, String? value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text("$label: ", style: const TextStyle(fontWeight: FontWeight.bold)),
-        Expanded(child: Text(value ?? 'N/A')),
-      ],
-    );
-  }
-
 }
