@@ -85,4 +85,29 @@ router.put('/:id/change-password', async (req, res) => {
   }
 });
 
+// Logout user and set their status to offline
+router.post('/:id/logout', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    console.log(`Received request to log out user with ID ${userId}`);
+
+    // Find the user and update their status to offline
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { status: 'offline' },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    console.log(`User with ID ${userId} logged out successfully and status set to offline`);
+    res.status(200).json({ message: 'User logged out successfully', user });
+  } catch (error) {
+    console.error(`Error logging out user with ID ${userId}:`, error);
+    res.status(500).json({ message: 'Error logging out', error });
+  }
+});
+
 module.exports = router;

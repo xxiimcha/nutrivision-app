@@ -64,6 +64,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _logout() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? userId = prefs.getString('userId');
+
+      if (userId != null) {
+        // Call your API to update the user's status to offline
+        final response = await http.post(
+          Uri.parse('http://localhost:5000/api/users/$userId/logout'), // Replace with your API
+          headers: <String, String>{
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(<String, String>{
+            'status': 'offline', // Update the status to offline
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          print('User logged out and status updated to offline.');
+
+          // Clear the SharedPreferences after logout
+          await prefs.clear();
+
+          // Navigate to the login screen (replace with your navigation logic)
+          AppNavigator().toLoginScreen(context);
+        } else {
+          print('Failed to update user status to offline: ${response.reasonPhrase}');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to log out: ${response.reasonPhrase}')),
+          );
+        }
+      } else {
+        print('User ID not found in SharedPreferences');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User ID not found')),
+        );
+      }
+    } catch (e) {
+      print('Error during logout: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error during logout: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,7 +169,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 15),
                         const Text("Security", style: paragraphM),
                         CustomButton(
-                          title: "ChangePassword",
+                          title: "Change Password",
                           onPressed: () {
                             AppNavigator().toChangePassword(context);
                           },
@@ -140,8 +185,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             AboutButton(),
                             SizedBox(height: 25),
-                            LogoutButton()
                           ],
+                        ),
+                        // Add the logout button
+                        CustomButton(
+                          title: "Logout",
+                          onPressed: _logout,
+                          icon: Icons.logout,
                         ),
                       ],
                     ),
