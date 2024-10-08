@@ -32,6 +32,8 @@ const notifRoutes = require('./routes/notifications'); // Import the patient rou
 const mealPlanRoutes = require('./routes/mealplans'); // Import the patient routes
 const messagesRouter = require('./routes/messages'); // Correct path to your messages route file
 app.use('/api/messages', messagesRouter); // Use '/api/messages' as the base path for message routes
+const callsRouter = require('./routes/calls'); // Correct path to your messages route file
+app.use('/api/calls', callsRouter); // Use '/api/messages' as the base path for message routes
 
 app.use('/api/auth', authRoutes); // Use the auth routes
 app.use('/api/events', eventRoutes); // Use the event routes
