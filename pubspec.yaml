@@ -1,0 +1,48 @@
+name: sjq
+description: "A new Flutter project."
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.1 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  intl: ^0.18.0
+  macos_ui: ^2.0.5
+  image_picker: ^0.8.4+4
+  google_fonts: ^6.2.1
+  table_calendar: ^3.0.9
+  http: ^1.2.1
+  shared_preferences: ^2.0.15
+  socket_io_client: ^2.0.0 
+  firebase_core: ^3.6.0
+  firebase_storage: ^12.3.2
+  firebase_auth: ^5.3.1
+  flutter_dotenv: ^5.0.2
+  
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/logo.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - images/
+    - assets/
+    - assets/avatar/
+    - assets/data/
+
+  fonts:
+    - family: CustomIcons
+      fonts:
+        - asset: assets/fonts/CustomIcons.ttf
+
